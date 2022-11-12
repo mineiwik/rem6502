@@ -869,6 +869,44 @@ mod tests {
     }
 
     #[test]
+    fn sty_zp() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x84);
+        cpu.write_byte(0x1, 0x12);
+        *cpu.get_registers().get_mut_y() = 0x14;
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x12), 0x14);
+    }
+
+    #[test]
+    fn sty_zp_x() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x94);
+        cpu.write_byte(0x1, 0x12);
+        *cpu.get_registers().get_mut_y() = 0x14;
+        *cpu.get_registers().get_mut_x() = 0x22;
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x34), 0x14);
+    }
+
+    #[test]
+    fn sty_a() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x8C);
+        cpu.write_byte(0x1, 0x12);
+        cpu.write_byte(0x2, 0x13);
+        *cpu.get_registers().get_mut_y() = 0x14;
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x1312), 0x14);
+    }
+
+    #[test]
     fn ldx_im() {
         let mut cpu = CPU::new();
         cpu.write_byte(0x0, 0xA2);
@@ -929,6 +967,69 @@ mod tests {
         cpu.run();
 
         assert_eq!(cpu.get_registers().get_x(), 0x24);
+    }
+
+    #[test]
+    fn ldy_im() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xA0);
+        cpu.write_byte(0x1, 0x34);
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_y(), 0x34);
+    }
+
+    #[test]
+    fn ldy_zp() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xA4);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x34, 0x68);
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_y(), 0x68);
+    }
+
+    #[test]
+    fn ldy_zp_x() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xB4);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x58, 0x68);
+        *cpu.get_registers().get_mut_x() = 0x24;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_y(), 0x68);
+    }
+
+    #[test]
+    fn ldy_a() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xAC);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x2, 0x64);
+        cpu.write_byte(0x6434, 0x24);
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_y(), 0x24);
+    }
+
+    #[test]
+    fn ldy_a_x() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xBC);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x2, 0x64);
+        cpu.write_byte(0x645B, 0x24);
+        *cpu.get_registers().get_mut_x() = 0x27;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_y(), 0x24);
     }
 
     #[test]

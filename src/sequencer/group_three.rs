@@ -40,6 +40,7 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
             sequence.push(LoadHigherAddr);
             sequence.push(AddToAddrBus(IndexedReg::X));
         }
+        IM => {}
         _ => return None,
     }
 
