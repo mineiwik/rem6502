@@ -31,7 +31,11 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         ZP => sequence.push(LoadLowerAddr),
         ZP_X => {
             sequence.push(LoadLowerAddr);
-            sequence.push(AddToAddrBus(IndexedReg::X));
+            let mut reg = IndexedReg::X;
+            if opcode == STX || opcode == LDX {
+                reg = IndexedReg::Y;
+            }
+            sequence.push(AddToAddrBus(reg));
         }
         A => {
             sequence.push(LoadLowerAddr);
@@ -40,7 +44,11 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         A_X => {
             sequence.push(LoadLowerAddr);
             sequence.push(LoadHigherAddr);
-            sequence.push(AddToAddrBus(IndexedReg::X));
+            let mut reg = IndexedReg::X;
+            if opcode == LDX {
+                reg = IndexedReg::Y;
+            }
+            sequence.push(AddToAddrBus(reg));
         }
         ACC | IM => {}
         _ => return None,
@@ -48,15 +56,6 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
 
     match (opcode, addr_mode) {
         (DEC, ACC) | (STX, ACC) | (LDX, ACC) => return None,
-        (STX, ZP_X) => {
-            // ZP_Y
-        }
-        (LDX, ZP_X) => {
-            // ZP_Y
-        }
-        (LDX, A_X) => {
-            // A_Y
-        }
         (ASL, ACC) => sequence.push(ShiftLeftOneBit(false)),
         (ASL, _) => sequence.push(ShiftLeftOneBit(true)),
         (ROL, ACC) => sequence.push(RotateLeftOneBit(false)),

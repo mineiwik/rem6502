@@ -843,6 +843,19 @@ mod tests {
     }
 
     #[test]
+    fn stx_zp_y() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x96);
+        cpu.write_byte(0x1, 0x12);
+        *cpu.get_registers().get_mut_x() = 0x14;
+        *cpu.get_registers().get_mut_y() = 0x22;
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x34), 0x14);
+    }
+
+    #[test]
     fn stx_a() {
         let mut cpu = CPU::new();
         cpu.write_byte(0x0, 0x8E);
@@ -879,12 +892,39 @@ mod tests {
     }
 
     #[test]
+    fn ldx_zp_y() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xB6);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x58, 0x68);
+        *cpu.get_registers().get_mut_y() = 0x24;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_x(), 0x68);
+    }
+
+    #[test]
     fn ldx_a() {
         let mut cpu = CPU::new();
         cpu.write_byte(0x0, 0xAE);
         cpu.write_byte(0x1, 0x34);
         cpu.write_byte(0x2, 0x64);
         cpu.write_byte(0x6434, 0x24);
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_x(), 0x24);
+    }
+
+    #[test]
+    fn ldx_a_y() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xBE);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x2, 0x64);
+        cpu.write_byte(0x645B, 0x24);
+        *cpu.get_registers().get_mut_y() = 0x27;
 
         cpu.run();
 
