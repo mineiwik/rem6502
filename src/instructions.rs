@@ -38,13 +38,17 @@ pub enum Instructions {
     PushFromReg(IndexedReg),
     SetFlags(Vec<Flag>),
     ClearFlags(Vec<Flag>),
+    LoadToAlu,
+    IncAlu,
+    DecAlu,
+    StoreAlu,
 }
 
 pub struct InstructionExecutor<'a> {
     mem: &'a mut Memory,
     reg: &'a mut Registers,
     addr_bus: &'a mut Word,
-    alu_out: &'a mut Byte,
+    alu: &'a mut Byte,
 }
 
 impl<'a> InstructionExecutor<'a> {
@@ -52,13 +56,13 @@ impl<'a> InstructionExecutor<'a> {
         mem: &'a mut Memory,
         reg: &'a mut Registers,
         addr_bus: &'a mut Word,
-        alu_out: &'a mut Byte,
+        alu: &'a mut Byte,
     ) -> Self {
         Self {
             mem,
             reg,
             addr_bus,
-            alu_out,
+            alu,
         }
     }
 
@@ -96,6 +100,10 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::PushFromReg(ind_reg) => self.push_from_reg(ind_reg),
             Instructions::SetFlags(flags) => self.set_flags(flags),
             Instructions::ClearFlags(flags) => self.clear_flags(flags),
+            Instructions::LoadToAlu => self.load_to_alu(),
+            Instructions::StoreAlu => self.store_alu(),
+            Instructions::IncAlu => self.inc_alu(),
+            Instructions::DecAlu => self.dec_alu(),
         }
     }
 
@@ -223,7 +231,7 @@ impl<'a> InstructionExecutor<'a> {
     fn load_lower_byte_to_alu(&mut self) {
         let res = self.mem.read_byte(*self.addr_bus);
         *self.addr_bus = self.addr_bus.wrapping_add(1);
-        *self.alu_out = res;
+        *self.alu = res;
     }
 
     fn load_lower_byte_to_addr_bus(&mut self) {
@@ -234,11 +242,7 @@ impl<'a> InstructionExecutor<'a> {
     fn load_higher_byte_to_addr_bus(&mut self, use_alu: bool, use_addr_bus: bool) {
         let res = self.mem.read_byte(self.get_addr(use_addr_bus));
         let addr_bytes = self.addr_bus.to_le_bytes();
-        let l_byte = if use_alu {
-            *self.alu_out
-        } else {
-            addr_bytes[0]
-        };
+        let l_byte = if use_alu { *self.alu } else { addr_bytes[0] };
         *self.addr_bus = u16::from_le_bytes([l_byte, res]);
     }
 
@@ -321,5 +325,21 @@ impl<'a> InstructionExecutor<'a> {
             let flag = self.get_mut_flag(flag);
             *flag = false;
         }
+    }
+
+    fn load_to_alu(&mut self) {
+        *self.alu = self.mem.read_byte(*self.addr_bus);
+    }
+
+    fn store_alu(&mut self) {
+        self.mem.write_byte(*self.addr_bus, *self.alu);
+    }
+
+    fn inc_alu(&mut self) {
+        *self.alu = self.alu.wrapping_add(1);
+    }
+
+    fn dec_alu(&mut self) {
+        *self.alu = self.alu.wrapping_sub(1);
     }
 }

@@ -69,14 +69,14 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         (LDX, IM) => sequence.push(LoadImmediate(IndexedReg::X)),
         (LDX, _) => sequence.push(LoadFromAddr(IndexedReg::X)),
         (DEC, _) => {
-            //sequence.push(LoadToAlu);
-            //sequence.push(DecAlu);
-            //sequence.push(StoreAlu);
+            sequence.push(LoadToAlu);
+            sequence.push(DecAlu);
+            sequence.push(StoreAlu);
         }
         (INC, _) => {
-            //sequence.push(LoadToAlu);
-            //sequence.push(IncAlu);
-            //sequence.push(StoreAlu);
+            sequence.push(LoadToAlu);
+            sequence.push(IncAlu);
+            sequence.push(StoreAlu);
         }
         _ => return None,
     }

@@ -10,7 +10,7 @@ pub struct CPU {
     mem: Memory,
     registers: Registers,
     addr_bus: Word,
-    alu_out: Byte,
+    alu: Byte,
 }
 
 impl CPU {
@@ -19,7 +19,7 @@ impl CPU {
             mem: Memory::new(),
             registers: Registers::new(),
             addr_bus: 0x0,
-            alu_out: 0x0,
+            alu: 0x0,
         }
     }
 
@@ -40,7 +40,7 @@ impl CPU {
             &mut self.mem,
             &mut self.registers,
             &mut self.addr_bus,
-            &mut self.alu_out,
+            &mut self.alu,
         );
         instruction_executor.execute_instruction(instruction);
     }

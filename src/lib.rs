@@ -934,4 +934,54 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_y(), 0x42);
     }
+
+    #[test]
+    fn inc_zp() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xE6);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x32, 0x44);
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x32), 0x45);
+    }
+
+    #[test]
+    fn inc_a() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xEE);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x2, 0x18);
+        cpu.write_byte(0x1832, 0x44);
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x1832), 0x45);
+    }
+
+    #[test]
+    fn dec_zp() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xC6);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x32, 0x44);
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x32), 0x43);
+    }
+
+    #[test]
+    fn dec_a() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xCE);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x2, 0x18);
+        cpu.write_byte(0x1832, 0x44);
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x1832), 0x43);
+    }
 }
