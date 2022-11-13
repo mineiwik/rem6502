@@ -24,8 +24,8 @@ pub enum Instructions {
     XORFromAddr(IndexedReg),
     CmpImmediate(IndexedReg),
     CmpFromAddr(IndexedReg),
-    LoadTempLowerAddr,
-    LoadTempHigherAddr,
+    LoadTempLowerAddr(bool),
+    LoadTempHigherAddr(bool),
     ShiftLeftOneBit(bool),
     ShiftRightOneBit(bool),
     RotateLeftOneBit(bool),
@@ -45,6 +45,13 @@ pub enum Instructions {
     IncPC,
     AddToPC,
     MoveAddrToPc,
+    LoadStackPointer,
+    PushHigherPC,
+    PushLowerPC,
+    PullLowerPC,
+    PullHigherPC,
+    PullToStatus,
+    SetBitTestFlags,
 }
 
 pub struct InstructionExecutor<'a> {
@@ -89,8 +96,12 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::XORFromAddr(ind_reg) => self.xor_byte_with_reg(ind_reg, true),
             Instructions::CmpImmediate(ind_reg) => self.cmp_byte_with_reg(ind_reg, false),
             Instructions::CmpFromAddr(ind_reg) => self.cmp_byte_with_reg(ind_reg, true),
-            Instructions::LoadTempLowerAddr => self.load_lower_byte_to_alu(),
-            Instructions::LoadTempHigherAddr => self.load_higher_byte_to_addr_bus(true, true),
+            Instructions::LoadTempLowerAddr(use_addr_bus) => {
+                self.load_lower_byte_to_alu(*use_addr_bus)
+            }
+            Instructions::LoadTempHigherAddr(use_addr_bus) => {
+                self.load_higher_byte_to_addr_bus(true, *use_addr_bus)
+            }
             Instructions::ShiftLeftOneBit(use_mem) => self.shift_left_one_bit(*use_mem),
             Instructions::ShiftRightOneBit(use_mem) => self.shift_right_one_bit(*use_mem),
             Instructions::RotateLeftOneBit(use_mem) => self.rotate_left_one_bit(*use_mem),
@@ -110,6 +121,13 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::IncPC => self.inc_pc(),
             Instructions::AddToPC => self.add_to_pc(),
             Instructions::MoveAddrToPc => self.load_addr_to_pc(),
+            Instructions::LoadStackPointer => self.load_stack_pointer(),
+            Instructions::PushHigherPC => self.push_higher_pc(),
+            Instructions::PushLowerPC => self.push_lower_pc(),
+            Instructions::PullHigherPC => self.pull_higher_pc(),
+            Instructions::PullLowerPC => self.pull_lower_pc(),
+            Instructions::PullToStatus => self.pull_to_status(),
+            Instructions::SetBitTestFlags => self.set_bit_test_flags(),
         }
     }
 
@@ -234,10 +252,13 @@ impl<'a> InstructionExecutor<'a> {
         self.reg.get_mut_p().n = lhs < rhs;
     }
 
-    fn load_lower_byte_to_alu(&mut self) {
-        let res = self.mem.read_byte(*self.addr_bus);
+    fn load_lower_byte_to_alu(&mut self, use_addr_bus: bool) {
+        let res = self.mem.read_byte(self.get_addr(use_addr_bus));
         *self.addr_bus = self.addr_bus.wrapping_add(1);
         *self.alu = res;
+        if !use_addr_bus {
+            self.reg.inc_pc();
+        }
     }
 
     fn load_lower_byte_to_addr_bus(&mut self) {
@@ -363,5 +384,42 @@ impl<'a> InstructionExecutor<'a> {
 
     fn load_addr_to_pc(&mut self) {
         *self.reg.get_mut_pc() = *self.addr_bus;
+    }
+
+    fn load_stack_pointer(&mut self) {
+        *self.addr_bus = u16::from_le_bytes([self.reg.get_s(), SP]);
+    }
+
+    fn push_higher_pc(&mut self) {
+        let val = self.reg.get_pc().to_le_bytes()[1];
+        self.push(val);
+    }
+
+    fn push_lower_pc(&mut self) {
+        let val = self.reg.get_pc().to_le_bytes()[0];
+        self.push(val);
+    }
+
+    fn pull_higher_pc(&mut self) {
+        let pc = self.reg.get_pc().to_le_bytes();
+        let val = self.pull();
+        *self.reg.get_mut_pc() = u16::from_le_bytes([pc[0], val]);
+    }
+
+    fn pull_lower_pc(&mut self) {
+        let pc = self.reg.get_pc().to_le_bytes();
+        let val = self.pull();
+        *self.reg.get_mut_pc() = u16::from_le_bytes([val, pc[1]]);
+    }
+
+    fn pull_to_status(&mut self) {
+        let p = self.pull();
+        self.reg.set_p(p);
+    }
+
+    fn set_bit_test_flags(&mut self) {
+        let val = self.mem.read_byte(*self.addr_bus);
+        self.reg.get_mut_p().n = (val & 0x80) >> 7 == 1;
+        self.reg.get_mut_p().v = (val & 0x40) >> 6 == 1;
     }
 }

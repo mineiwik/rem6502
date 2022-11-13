@@ -29,9 +29,31 @@ impl Registers {
             y: 0x0,
             ir: 0x0,
             pc: 0x0,
-            s: 0x0,
+            s: 0xFF,
             p: Default::default(),
         }
+    }
+
+    pub fn set_p(&mut self, p: Byte) {
+        self.p.c = (p & 0x1) >> 0 == 1;
+        self.p.z = (p & 0x2) >> 1 == 1;
+        self.p.i = (p & 0x4) >> 2 == 1;
+        self.p.d = (p & 0x8) >> 3 == 1;
+        self.p.b = (p & 0x10) >> 4 == 1;
+        self.p.v = (p & 0x40) >> 6 == 1;
+        self.p.n = (p & 0x80) >> 7 == 1;
+    }
+
+    pub fn get_p_byte(&self) -> Byte {
+        let mut res = 0x0;
+        res |= (self.p.c as u8) << 0;
+        res |= (self.p.z as u8) << 1;
+        res |= (self.p.i as u8) << 2;
+        res |= (self.p.d as u8) << 3;
+        res |= (self.p.b as u8) << 4;
+        res |= (self.p.v as u8) << 6;
+        res |= (self.p.n as u8) << 7;
+        res
     }
 
     pub fn get_p(&self) -> &Status {

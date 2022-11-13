@@ -38,13 +38,13 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         ZP_X_IND => {
             sequence.push(LoadLowerAddr);
             sequence.push(AddToAddrBus(IndexedReg::X));
-            sequence.push(LoadTempLowerAddr);
-            sequence.push(LoadTempHigherAddr);
+            sequence.push(LoadTempLowerAddr(true));
+            sequence.push(LoadTempHigherAddr(true));
         }
         ZP_Y_IND => {
             sequence.push(LoadLowerAddr);
-            sequence.push(LoadTempLowerAddr);
-            sequence.push(LoadTempHigherAddr);
+            sequence.push(LoadTempLowerAddr(true));
+            sequence.push(LoadTempHigherAddr(true));
             sequence.push(AddToAddrBus(IndexedReg::Y));
         }
         A => {

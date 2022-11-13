@@ -58,9 +58,14 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         (JMP, A) => sequence.push(MoveAddrToPc),
 
         (JMP_ABS, A) => {
-            sequence.push(LoadTempLowerAddr);
-            sequence.push(LoadTempHigherAddr);
+            sequence.push(LoadTempLowerAddr(true));
+            sequence.push(LoadTempHigherAddr(true));
             sequence.push(MoveAddrToPc);
+        }
+
+        (BIT, A) | (BIT, ZP) => {
+            sequence.push(ANDFromAddr(IndexedReg::A));
+            sequence.push(SetBitTestFlags);
         }
         _ => return None,
     }

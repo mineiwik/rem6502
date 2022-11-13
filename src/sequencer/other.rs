@@ -34,9 +34,40 @@ const NOP: u8 = 0xEA;
 pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     let mut sequence = vec![];
 
-    sequence.push(Idle);
-
     match instruction {
+        JSR_ABS => {
+            sequence.push(LoadTempLowerAddr(false));
+            sequence.push(LoadStackPointer);
+            sequence.push(PushHigherPC);
+            sequence.push(PushLowerPC);
+            sequence.push(LoadTempHigherAddr(false));
+            sequence.push(MoveAddrToPc);
+        }
+        RTS => {
+            sequence.push(Idle);
+            sequence.push(Idle);
+            sequence.push(PullLowerPC);
+            sequence.push(PullHigherPC);
+            sequence.push(IncPC);
+            sequence.push(Idle);
+        }
+        RTI => {
+            sequence.push(Idle);
+            sequence.push(Idle);
+            sequence.push(PullToStatus);
+            sequence.push(PullLowerPC);
+            sequence.push(PullHigherPC);
+        }
+        BRK => {
+            // TODO
+            sequence.push(IncPC);
+            sequence.push(PushHigherPC);
+            sequence.push(PushLowerPC);
+            sequence.push(SetFlags(vec![Flag::B]));
+            sequence.push(Idle);
+            sequence.push(Idle);
+            sequence.push(Idle);
+        }
         INX => sequence.push(IncReg(IndexedReg::X)),
         INY => sequence.push(IncReg(IndexedReg::Y)),
         DEX => sequence.push(DecReg(IndexedReg::X)),
@@ -61,6 +92,10 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         SEI => sequence.push(SetFlags(vec![Flag::I])),
         _ => return None,
     };
+
+    if sequence.len() == 1 {
+        sequence.insert(0, Idle);
+    }
 
     Some(sequence)
 }

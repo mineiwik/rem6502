@@ -1446,4 +1446,95 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_pc(), 0x7618);
     }
+
+    #[test]
+    fn jsr() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x20);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x2, 0x24);
+
+        cpu.run();
+
+        assert_eq!(cpu.mem.read_byte(0x01FE), 0x02);
+        assert_eq!(cpu.mem.read_byte(0x01FF), 0x00);
+        assert_eq!(cpu.get_registers().get_pc(), 0x2432);
+    }
+
+    #[test]
+    fn rts() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x60);
+        cpu.write_byte(0x01fe, 0x24);
+        cpu.write_byte(0x01ff, 0x32);
+        *cpu.registers.get_mut_s() = 0xFD;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_pc(), 0x3225);
+    }
+
+    #[test]
+    fn rti() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x40);
+        cpu.write_byte(0x01fd, 0xD4);
+        cpu.write_byte(0x01fe, 0x22);
+        cpu.write_byte(0x01ff, 0x30);
+        *cpu.registers.get_mut_s() = 0xFC;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_p_byte(), 0xD4);
+        assert_eq!(cpu.get_registers().get_pc(), 0x3022);
+    }
+
+    #[test]
+    fn bit_zp_not_zero() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x24);
+        cpu.write_byte(0x1, 0xD4);
+        cpu.write_byte(0xD4, 0xF2);
+        *cpu.registers.get_mut_a() = 0xFC;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_p().n, true);
+        assert_eq!(cpu.get_registers().get_p().z, false);
+        assert_eq!(cpu.get_registers().get_p().v, true);
+        assert_eq!(cpu.get_registers().get_pc(), 0x2);
+    }
+
+    #[test]
+    fn bit_zp_zero() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x24);
+        cpu.write_byte(0x1, 0xD4);
+        cpu.write_byte(0xD4, 0x12);
+        *cpu.registers.get_mut_a() = 0x0;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_p().n, false);
+        assert_eq!(cpu.get_registers().get_p().z, true);
+        assert_eq!(cpu.get_registers().get_p().v, false);
+        assert_eq!(cpu.get_registers().get_pc(), 0x2);
+    }
+
+    #[test]
+    fn bit_a() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x2C);
+        cpu.write_byte(0x1, 0xD4);
+        cpu.write_byte(0x2, 0x88);
+        cpu.write_byte(0x88D4, 0xF2);
+        *cpu.registers.get_mut_a() = 0xFC;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_p().n, true);
+        assert_eq!(cpu.get_registers().get_p().z, false);
+        assert_eq!(cpu.get_registers().get_p().v, true);
+        assert_eq!(cpu.get_registers().get_pc(), 0x3);
+    }
 }
