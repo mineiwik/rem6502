@@ -44,6 +44,7 @@ pub enum Instructions {
     StoreAlu,
     IncPC,
     AddToPC,
+    MoveAddrToPc,
 }
 
 pub struct InstructionExecutor<'a> {
@@ -108,6 +109,7 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::DecAlu => self.dec_alu(),
             Instructions::IncPC => self.inc_pc(),
             Instructions::AddToPC => self.add_to_pc(),
+            Instructions::MoveAddrToPc => self.load_addr_to_pc(),
         }
     }
 
@@ -357,5 +359,9 @@ impl<'a> InstructionExecutor<'a> {
 
     fn add_to_pc(&mut self) {
         *self.reg.get_mut_pc() = self.reg.get_pc().wrapping_add(*self.alu as u16);
+    }
+
+    fn load_addr_to_pc(&mut self) {
+        *self.reg.get_mut_pc() = *self.addr_bus;
     }
 }

@@ -54,6 +54,14 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
 
         (CPY, IM) => sequence.push(CmpImmediate(IndexedReg::Y)),
         (CPY, _) => sequence.push(CmpFromAddr(IndexedReg::Y)),
+
+        (JMP, A) => sequence.push(MoveAddrToPc),
+
+        (JMP_ABS, A) => {
+            sequence.push(LoadTempLowerAddr);
+            sequence.push(LoadTempHigherAddr);
+            sequence.push(MoveAddrToPc);
+        }
         _ => return None,
     }
 

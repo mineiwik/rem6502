@@ -1420,4 +1420,30 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
     }
+
+    #[test]
+    fn jmp() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x4C);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x2, 0x24);
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_pc(), 0x2432);
+    }
+
+    #[test]
+    fn jmp_abs() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x6C);
+        cpu.write_byte(0x1, 0x32);
+        cpu.write_byte(0x2, 0x24);
+        cpu.write_byte(0x2432, 0x18);
+        cpu.write_byte(0x2433, 0x76);
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_pc(), 0x7618);
+    }
 }
