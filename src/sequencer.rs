@@ -1,6 +1,6 @@
 use std::vec;
 
-use crate::instructions::Instructions;
+use crate::{instructions::Instructions, memory::Memory, registers::Registers};
 
 mod branch;
 mod group_one;
@@ -16,12 +16,12 @@ const OPCODE_MASK: u8 = 0b11100000;
 const ADDR_MODE_MASK: u8 = 0b00011100;
 const OPCODE_GROUP_MASK: u8 = 0b00000011;
 
-pub fn get_seqeunce(instruction: u8) -> Vec<Instructions> {
+pub fn get_seqeunce(instruction: u8, reg: &Registers, mem: &Memory) -> Vec<Instructions> {
     if let Some(res) = get_group_sequence(instruction) {
         return res;
     }
 
-    if let Some(res) = get_branch_sequence(instruction) {
+    if let Some(res) = get_branch_sequence(instruction, reg, mem) {
         return res;
     }
 
@@ -42,8 +42,12 @@ fn get_group_sequence(instruction: u8) -> Option<Vec<Instructions>> {
     }
 }
 
-fn get_branch_sequence(instruction: u8) -> Option<Vec<Instructions>> {
-    branch::get_seqeunce(instruction)
+fn get_branch_sequence(
+    instruction: u8,
+    reg: &Registers,
+    mem: &Memory,
+) -> Option<Vec<Instructions>> {
+    branch::get_seqeunce(instruction, reg, mem)
 }
 
 fn get_other_sequence(instruction: u8) -> Option<Vec<Instructions>> {

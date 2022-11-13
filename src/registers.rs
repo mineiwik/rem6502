@@ -54,6 +54,10 @@ impl Registers {
         self.y
     }
 
+    pub fn get_mut_pc(&mut self) -> &mut Word {
+        &mut self.pc
+    }
+
     pub fn get_mut_p(&mut self) -> &mut Status {
         &mut self.p
     }
@@ -87,8 +91,8 @@ impl Registers {
         self.pc = new_pc;
     }
 
-    pub fn get_pc(&self) -> &Word {
-        &self.pc
+    pub fn get_pc(&self) -> Word {
+        self.pc
     }
 }
 

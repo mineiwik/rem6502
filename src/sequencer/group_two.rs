@@ -50,7 +50,7 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
             }
             sequence.push(AddToAddrBus(reg));
         }
-        ACC | IM => {}
+        ACC | IM => sequence.push(Idle),
         _ => return None,
     }
 
@@ -68,12 +68,12 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         (LDX, IM) => sequence.push(LoadImmediate(IndexedReg::X)),
         (LDX, _) => sequence.push(LoadFromAddr(IndexedReg::X)),
         (DEC, _) => {
-            sequence.push(LoadToAlu);
+            sequence.push(LoadToAlu(true));
             sequence.push(DecAlu);
             sequence.push(StoreAlu);
         }
         (INC, _) => {
-            sequence.push(LoadToAlu);
+            sequence.push(LoadToAlu(true));
             sequence.push(IncAlu);
             sequence.push(StoreAlu);
         }

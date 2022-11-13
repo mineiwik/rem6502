@@ -34,12 +34,14 @@ const NOP: u8 = 0xEA;
 pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     let mut sequence = vec![];
 
+    sequence.push(Idle);
+
     match instruction {
         INX => sequence.push(IncReg(IndexedReg::X)),
         INY => sequence.push(IncReg(IndexedReg::Y)),
         DEX => sequence.push(DecReg(IndexedReg::X)),
         DEY => sequence.push(DecReg(IndexedReg::Y)),
-        NOP => sequence.push(NoOp),
+        NOP => sequence.push(Idle),
         TAX => sequence.push(TransferReg(IndexedReg::A, IndexedReg::X)),
         TAY => sequence.push(TransferReg(IndexedReg::A, IndexedReg::Y)),
         TSX => sequence.push(TransferReg(IndexedReg::S, IndexedReg::X)),

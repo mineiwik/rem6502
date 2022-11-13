@@ -30,7 +30,7 @@ pub enum Instructions {
     ShiftRightOneBit(bool),
     RotateLeftOneBit(bool),
     RotateRightOneBit(bool),
-    NoOp,
+    Idle,
     IncReg(IndexedReg),
     DecReg(IndexedReg),
     TransferReg(IndexedReg, IndexedReg),
@@ -38,10 +38,12 @@ pub enum Instructions {
     PushFromReg(IndexedReg),
     SetFlags(Vec<Flag>),
     ClearFlags(Vec<Flag>),
-    LoadToAlu,
+    LoadToAlu(bool),
     IncAlu,
     DecAlu,
     StoreAlu,
+    IncPC,
+    AddToPC,
 }
 
 pub struct InstructionExecutor<'a> {
@@ -92,7 +94,7 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::ShiftRightOneBit(use_mem) => self.shift_right_one_bit(*use_mem),
             Instructions::RotateLeftOneBit(use_mem) => self.rotate_left_one_bit(*use_mem),
             Instructions::RotateRightOneBit(use_mem) => self.rotate_right_one_bit(*use_mem),
-            Instructions::NoOp => {}
+            Instructions::Idle => {}
             Instructions::IncReg(ind_reg) => self.inc_reg(ind_reg),
             Instructions::DecReg(ind_reg) => self.dec_reg(ind_reg),
             Instructions::TransferReg(from, to) => self.transfer_reg(from, to),
@@ -100,10 +102,12 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::PushFromReg(ind_reg) => self.push_from_reg(ind_reg),
             Instructions::SetFlags(flags) => self.set_flags(flags),
             Instructions::ClearFlags(flags) => self.clear_flags(flags),
-            Instructions::LoadToAlu => self.load_to_alu(),
+            Instructions::LoadToAlu(use_addr_bus) => self.load_to_alu(*use_addr_bus),
             Instructions::StoreAlu => self.store_alu(),
             Instructions::IncAlu => self.inc_alu(),
             Instructions::DecAlu => self.dec_alu(),
+            Instructions::IncPC => self.inc_pc(),
+            Instructions::AddToPC => self.add_to_pc(),
         }
     }
 
@@ -129,7 +133,7 @@ impl<'a> InstructionExecutor<'a> {
         if use_addr_bus {
             *self.addr_bus
         } else {
-            *self.reg.get_pc()
+            self.reg.get_pc()
         }
     }
 
@@ -235,8 +239,9 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn load_lower_byte_to_addr_bus(&mut self) {
-        let res = self.mem.read_byte(*self.reg.get_pc());
+        let res = self.mem.read_byte(self.reg.get_pc());
         *self.addr_bus = u16::from_le_bytes([res, 0x0]);
+        self.reg.inc_pc();
     }
 
     fn load_higher_byte_to_addr_bus(&mut self, use_alu: bool, use_addr_bus: bool) {
@@ -244,6 +249,9 @@ impl<'a> InstructionExecutor<'a> {
         let addr_bytes = self.addr_bus.to_le_bytes();
         let l_byte = if use_alu { *self.alu } else { addr_bytes[0] };
         *self.addr_bus = u16::from_le_bytes([l_byte, res]);
+        if !use_addr_bus {
+            self.reg.inc_pc();
+        }
     }
 
     fn add_to_addr_bus(&mut self, ind_reg: &IndexedReg) {
@@ -327,8 +335,8 @@ impl<'a> InstructionExecutor<'a> {
         }
     }
 
-    fn load_to_alu(&mut self) {
-        *self.alu = self.mem.read_byte(*self.addr_bus);
+    fn load_to_alu(&mut self, use_addr_bus: bool) {
+        *self.alu = self.mem.read_byte(self.get_addr(use_addr_bus));
     }
 
     fn store_alu(&mut self) {
@@ -341,5 +349,13 @@ impl<'a> InstructionExecutor<'a> {
 
     fn dec_alu(&mut self) {
         *self.alu = self.alu.wrapping_sub(1);
+    }
+
+    fn inc_pc(&mut self) {
+        self.reg.inc_pc();
+    }
+
+    fn add_to_pc(&mut self) {
+        *self.reg.get_mut_pc() = self.reg.get_pc().wrapping_add(*self.alu as u16);
     }
 }
