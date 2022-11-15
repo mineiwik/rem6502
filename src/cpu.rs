@@ -1,16 +1,17 @@
 use crate::{
-    constants::{Byte, Word},
     instructions::{InstructionExecutor, Instructions},
     memory::Memory,
     registers::Registers,
-    sequencer,
+    sequencer, Byte, Word,
 };
 
 pub struct CPU {
     mem: Memory,
     registers: Registers,
     addr_bus: Word,
+    data_bus: Byte,
     alu: Byte,
+    cycles: usize,
 }
 
 impl CPU {
@@ -19,7 +20,9 @@ impl CPU {
             mem: Memory::new(),
             registers: Registers::new(),
             addr_bus: 0x0,
+            data_bus: 0x0,
             alu: 0x0,
+            cycles: 0x1,
         }
     }
 
@@ -40,6 +43,7 @@ impl CPU {
             &mut self.mem,
             &mut self.registers,
             &mut self.addr_bus,
+            &mut self.data_bus,
             &mut self.alu,
         );
         instruction_executor.execute_instruction(instruction);
@@ -54,6 +58,7 @@ impl CPU {
     pub fn run(&mut self) {
         let instructions = self.get_instruction();
         for instruction in instructions {
+            self.cycles += 1;
             self.execute(&instruction);
         }
     }
@@ -73,6 +78,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x34);
         assert_eq!(cpu.get_registers().get_pc(), 0x1);
+        assert_eq!(cpu.cycles, 3);
     }
 
     #[test]
@@ -86,6 +92,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x68);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 4);
     }
 
     #[test]
@@ -100,6 +107,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x24);
         assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -114,6 +122,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x32);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -130,6 +139,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x31);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 7);
     }
 
     #[test]
@@ -146,6 +156,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x28);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        //assert_eq!(cpu.cycles, 6);
     }
 
     #[test]
@@ -162,6 +173,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x32);
         assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        //assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -178,6 +190,7 @@ mod tests {
 
         assert_eq!(cpu.get_registers().get_a(), 0x32);
         assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        //assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -801,6 +814,42 @@ mod tests {
         assert_eq!(cpu.get_registers().get_p().z, true);
         assert_eq!(cpu.get_registers().get_p().c, true);
         assert_eq!(cpu.get_registers().get_pc(), 0x1);
+        assert_eq!(cpu.cycles, 3);
+    }
+
+    #[test]
+    fn cpx_zp() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xE4);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x34, 0x33);
+        *cpu.get_registers().get_mut_x() = 0x33;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_p().n, false);
+        assert_eq!(cpu.get_registers().get_p().z, true);
+        assert_eq!(cpu.get_registers().get_p().c, true);
+        assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 4);
+    }
+
+    #[test]
+    fn cpx_a() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xEC);
+        cpu.write_byte(0x1, 0x34);
+        cpu.write_byte(0x2, 0x16);
+        cpu.write_byte(0x1634, 0x33);
+        *cpu.get_registers().get_mut_x() = 0x33;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_p().n, false);
+        assert_eq!(cpu.get_registers().get_p().z, true);
+        assert_eq!(cpu.get_registers().get_p().c, true);
+        assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -839,7 +888,7 @@ mod tests {
 
         cpu.run();
 
-        assert_eq!(cpu.get_registers().get_a(), 0x0A);
+        assert_eq!(cpu.read_byte(0x1312), 0x0A);
         assert_eq!(cpu.get_registers().get_p().c, true);
         assert_eq!(cpu.get_registers().get_pc(), 0x3);
     }
@@ -866,7 +915,7 @@ mod tests {
 
         cpu.run();
 
-        assert_eq!(cpu.get_registers().get_a(), 0x42);
+        assert_eq!(cpu.read_byte(0x1312), 0x42);
         assert_eq!(cpu.get_registers().get_p().c, true);
     }
 
@@ -892,7 +941,7 @@ mod tests {
 
         cpu.run();
 
-        assert_eq!(cpu.get_registers().get_a(), 0x0B);
+        assert_eq!(cpu.read_byte(0x1312), 0x0B);
         assert_eq!(cpu.get_registers().get_p().c, true);
     }
 
@@ -919,7 +968,7 @@ mod tests {
 
         cpu.run();
 
-        assert_eq!(cpu.get_registers().get_a(), 0xC2);
+        assert_eq!(cpu.read_byte(0x1312), 0xC2);
         assert_eq!(cpu.get_registers().get_p().c, true);
     }
 
@@ -934,6 +983,7 @@ mod tests {
 
         assert_eq!(cpu.read_byte(0x12), 0x14);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 4);
     }
 
     #[test]
@@ -948,6 +998,7 @@ mod tests {
 
         assert_eq!(cpu.read_byte(0x34), 0x14);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -962,6 +1013,7 @@ mod tests {
 
         assert_eq!(cpu.read_byte(0x1312), 0x14);
         assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -974,6 +1026,7 @@ mod tests {
         cpu.run();
 
         assert_eq!(cpu.read_byte(0x12), 0x14);
+        assert_eq!(cpu.cycles, 4);
     }
 
     #[test]
@@ -1011,6 +1064,7 @@ mod tests {
         cpu.run();
 
         assert_eq!(cpu.get_registers().get_x(), 0x34);
+        assert_eq!(cpu.cycles, 3);
     }
 
     #[test]
@@ -1187,6 +1241,7 @@ mod tests {
 
         assert_eq!(cpu.read_byte(0x32), 0x45);
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 6);
     }
 
     #[test]
@@ -1201,6 +1256,23 @@ mod tests {
 
         assert_eq!(cpu.read_byte(0x1832), 0x45);
         assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        assert_eq!(cpu.cycles, 7);
+    }
+
+    #[test]
+    fn inc_a_x() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0xFE);
+        cpu.write_byte(0x1, 0x30);
+        cpu.write_byte(0x2, 0x18);
+        cpu.write_byte(0x1832, 0x44);
+        *cpu.registers.get_mut_x() = 0x2;
+
+        cpu.run();
+
+        assert_eq!(cpu.read_byte(0x1832), 0x45);
+        assert_eq!(cpu.get_registers().get_pc(), 0x3);
+        assert_eq!(cpu.cycles, 8);
     }
 
     #[test]
@@ -1311,6 +1383,20 @@ mod tests {
         cpu.run();
 
         assert_eq!(cpu.get_registers().get_pc(), 0x34);
+        assert_eq!(cpu.cycles, 4);
+    }
+
+    #[test]
+    fn bcc_do_branch_with_page_crossing() {
+        let mut cpu = CPU::new();
+        cpu.write_byte(0x0, 0x90);
+        cpu.write_byte(0x1, 0xFF);
+        cpu.registers.p.c = false;
+
+        cpu.run();
+
+        assert_eq!(cpu.get_registers().get_pc(), 0x101);
+        assert_eq!(cpu.cycles, 5);
     }
 
     #[test]
@@ -1323,6 +1409,7 @@ mod tests {
         cpu.run();
 
         assert_eq!(cpu.get_registers().get_pc(), 0x2);
+        assert_eq!(cpu.cycles, 3);
     }
 
     #[test]

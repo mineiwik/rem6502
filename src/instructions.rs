@@ -1,36 +1,36 @@
 use crate::{
-    constants::{Byte, Word, SP},
     memory::Memory,
     registers::{Flag, IndexedReg, Registers},
+    Byte, Word, SP,
 };
 
 #[derive(Debug)]
 pub enum Instructions {
-    LoadImmediate(IndexedReg),
+    Idle,
+    MemToDataBus(bool),
+    RegToDataBus(IndexedReg),
+    DataBusToReg(IndexedReg),
+    AluToDataBus,
+    DataBusToMem(bool),
+    CompareWithReg(IndexedReg),
     LoadLowerAddr,
     LoadHigherAddr,
-    LoadFromAddr(IndexedReg),
-    StoreToAddr(IndexedReg),
     AddToAddrBus(IndexedReg),
-    AddImmediate(IndexedReg),
-    AddFromAddr(IndexedReg),
-    SubImmediate(IndexedReg),
-    SubFromAddr(IndexedReg),
-    ORImmediate(IndexedReg),
-    ORFromAddr(IndexedReg),
-    ANDImmediate(IndexedReg),
-    ANDFromAddr(IndexedReg),
-    XORImmediate(IndexedReg),
-    XORFromAddr(IndexedReg),
-    CmpImmediate(IndexedReg),
-    CmpFromAddr(IndexedReg),
+    AddToReg(IndexedReg),
+    SubFromReg(IndexedReg),
+    ORWithReg(IndexedReg),
+    ANDWithReg(IndexedReg),
+    XORWithReg(IndexedReg),
     LoadTempLowerAddr(bool),
     LoadTempHigherAddr(bool),
-    ShiftLeftOneBit(bool),
-    ShiftRightOneBit(bool),
-    RotateLeftOneBit(bool),
-    RotateRightOneBit(bool),
-    Idle,
+    ShiftLeftReg,
+    ShiftLeftDataBus,
+    ShiftRightReg,
+    ShiftRightDataBus,
+    RotateLeftReg,
+    RotateLeftDataBus,
+    RotateRightReg,
+    RotateRightDataBus,
     IncReg(IndexedReg),
     DecReg(IndexedReg),
     TransferReg(IndexedReg, IndexedReg),
@@ -38,10 +38,9 @@ pub enum Instructions {
     PushFromReg(IndexedReg),
     SetFlags(Vec<Flag>),
     ClearFlags(Vec<Flag>),
-    LoadToAlu(bool),
+    DataBusToAlu,
     IncAlu,
     DecAlu,
-    StoreAlu,
     IncPC,
     AddToPC,
     MoveAddrToPc,
@@ -58,6 +57,7 @@ pub struct InstructionExecutor<'a> {
     mem: &'a mut Memory,
     reg: &'a mut Registers,
     addr_bus: &'a mut Word,
+    data_bus: &'a mut Byte,
     alu: &'a mut Byte,
 }
 
@@ -66,46 +66,48 @@ impl<'a> InstructionExecutor<'a> {
         mem: &'a mut Memory,
         reg: &'a mut Registers,
         addr_bus: &'a mut Word,
+        data_bus: &'a mut Byte,
         alu: &'a mut Byte,
     ) -> Self {
         Self {
             mem,
             reg,
             addr_bus,
+            data_bus,
             alu,
         }
     }
 
     pub fn execute_instruction(&mut self, instruction: &Instructions) {
         match instruction {
-            Instructions::LoadImmediate(ind_reg) => self.load_byte_to_reg(ind_reg, false),
+            Instructions::MemToDataBus(use_addr_bus) => self.mem_to_data_bus(*use_addr_bus),
+            Instructions::RegToDataBus(ind_reg) => self.reg_to_data_bus(ind_reg),
+            Instructions::DataBusToReg(ind_reg) => self.data_bus_to_reg(ind_reg),
+            Instructions::AluToDataBus => self.alu_to_data_bus(),
+            Instructions::DataBusToMem(use_addr_bus) => self.data_bus_to_mem(*use_addr_bus),
+            Instructions::CompareWithReg(ind_reg) => self.compare_with_reg(ind_reg),
             Instructions::LoadLowerAddr => self.load_lower_byte_to_addr_bus(),
             Instructions::LoadHigherAddr => self.load_higher_byte_to_addr_bus(false, false),
-            Instructions::LoadFromAddr(ind_reg) => self.load_byte_to_reg(ind_reg, true),
-            Instructions::StoreToAddr(ind_reg) => self.store_byte_from_reg(ind_reg, true),
             Instructions::AddToAddrBus(ind_reg) => self.add_to_addr_bus(ind_reg),
-            Instructions::AddImmediate(ind_reg) => self.add_byte_to_reg(ind_reg, false),
-            Instructions::AddFromAddr(ind_reg) => self.add_byte_to_reg(ind_reg, true),
-            Instructions::SubImmediate(ind_reg) => self.sub_byte_from_reg(ind_reg, false),
-            Instructions::SubFromAddr(ind_reg) => self.sub_byte_from_reg(ind_reg, true),
-            Instructions::ORImmediate(ind_reg) => self.or_byte_with_reg(ind_reg, false),
-            Instructions::ORFromAddr(ind_reg) => self.or_byte_with_reg(ind_reg, true),
-            Instructions::ANDImmediate(ind_reg) => self.and_byte_with_reg(ind_reg, false),
-            Instructions::ANDFromAddr(ind_reg) => self.and_byte_with_reg(ind_reg, true),
-            Instructions::XORImmediate(ind_reg) => self.xor_byte_with_reg(ind_reg, false),
-            Instructions::XORFromAddr(ind_reg) => self.xor_byte_with_reg(ind_reg, true),
-            Instructions::CmpImmediate(ind_reg) => self.cmp_byte_with_reg(ind_reg, false),
-            Instructions::CmpFromAddr(ind_reg) => self.cmp_byte_with_reg(ind_reg, true),
+            Instructions::AddToReg(ind_reg) => self.add_to_reg(ind_reg),
+            Instructions::SubFromReg(ind_reg) => self.sub_from_reg(ind_reg),
+            Instructions::ORWithReg(ind_reg) => self.or_with_reg(ind_reg),
+            Instructions::ANDWithReg(ind_reg) => self.and_with_reg(ind_reg),
+            Instructions::XORWithReg(ind_reg) => self.xor_with_reg(ind_reg),
             Instructions::LoadTempLowerAddr(use_addr_bus) => {
                 self.load_lower_byte_to_alu(*use_addr_bus)
             }
             Instructions::LoadTempHigherAddr(use_addr_bus) => {
                 self.load_higher_byte_to_addr_bus(true, *use_addr_bus)
             }
-            Instructions::ShiftLeftOneBit(use_mem) => self.shift_left_one_bit(*use_mem),
-            Instructions::ShiftRightOneBit(use_mem) => self.shift_right_one_bit(*use_mem),
-            Instructions::RotateLeftOneBit(use_mem) => self.rotate_left_one_bit(*use_mem),
-            Instructions::RotateRightOneBit(use_mem) => self.rotate_right_one_bit(*use_mem),
+            Instructions::ShiftLeftReg => self.shift_left_reg(),
+            Instructions::ShiftLeftDataBus => self.shift_left_data_bus(),
+            Instructions::ShiftRightReg => self.shift_right_reg(),
+            Instructions::ShiftRightDataBus => self.shift_right_data_bus(),
+            Instructions::RotateLeftReg => self.rotate_left_reg(),
+            Instructions::RotateLeftDataBus => self.rotate_left_data_bus(),
+            Instructions::RotateRightReg => self.rotate_right_reg(),
+            Instructions::RotateRightDataBus => self.rotate_right_data_bus(),
             Instructions::Idle => {}
             Instructions::IncReg(ind_reg) => self.inc_reg(ind_reg),
             Instructions::DecReg(ind_reg) => self.dec_reg(ind_reg),
@@ -114,8 +116,7 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::PushFromReg(ind_reg) => self.push_from_reg(ind_reg),
             Instructions::SetFlags(flags) => self.set_flags(flags),
             Instructions::ClearFlags(flags) => self.clear_flags(flags),
-            Instructions::LoadToAlu(use_addr_bus) => self.load_to_alu(*use_addr_bus),
-            Instructions::StoreAlu => self.store_alu(),
+            Instructions::DataBusToAlu => self.data_bus_to_alu(),
             Instructions::IncAlu => self.inc_alu(),
             Instructions::DecAlu => self.dec_alu(),
             Instructions::IncPC => self.inc_pc(),
@@ -149,6 +150,18 @@ impl<'a> InstructionExecutor<'a> {
         }
     }
 
+    fn get_mut_flag(&mut self, flag: &Flag) -> &mut bool {
+        match flag {
+            Flag::C => &mut self.reg.get_mut_p().c,
+            Flag::Z => &mut self.reg.get_mut_p().z,
+            Flag::I => &mut self.reg.get_mut_p().i,
+            Flag::D => &mut self.reg.get_mut_p().d,
+            Flag::B => &mut self.reg.get_mut_p().b,
+            Flag::V => &mut self.reg.get_mut_p().v,
+            Flag::N => &mut self.reg.get_mut_p().n,
+        }
+    }
+
     fn get_addr(&self, use_addr_bus: bool) -> Word {
         if use_addr_bus {
             *self.addr_bus
@@ -157,96 +170,110 @@ impl<'a> InstructionExecutor<'a> {
         }
     }
 
-    fn get_val(&self, use_mem: bool) -> Byte {
-        if use_mem {
-            self.mem.read_byte(*self.addr_bus)
-        } else {
-            self.get_reg(&IndexedReg::A)
-        }
+    fn mem_to_data_bus(&mut self, use_addr_bus: bool) {
+        *self.data_bus = self.mem.read_byte(self.get_addr(use_addr_bus));
     }
 
-    fn shift_left_one_bit(&mut self, use_mem: bool) {
-        let val = self.get_val(use_mem);
-        let reg = self.reg.get_mut_a();
-        *reg = val << 1;
-        self.reg.get_mut_p().c = val & 0x80 != 0x0;
+    fn reg_to_data_bus(&mut self, ind_reg: &IndexedReg) {
+        *self.data_bus = self.get_reg(ind_reg);
     }
 
-    fn shift_right_one_bit(&mut self, use_mem: bool) {
-        let val = self.get_val(use_mem);
-        let reg = self.reg.get_mut_a();
-        *reg = val >> 1;
-        self.reg.get_mut_p().c = val & 0x01 != 0x0;
+    fn data_bus_to_reg(&mut self, ind_reg: &IndexedReg) {
+        *self.get_mut_reg(ind_reg) = *self.data_bus;
     }
 
-    fn rotate_left_one_bit(&mut self, use_mem: bool) {
-        let val = self.get_val(use_mem);
-        let reg = self.reg.get_mut_a();
-        *reg = val.rotate_left(1);
-        self.reg.get_mut_p().c = val & 0x80 != 0x0;
+    fn alu_to_data_bus(&mut self) {
+        *self.data_bus = *self.alu;
     }
 
-    fn rotate_right_one_bit(&mut self, use_mem: bool) {
-        let val = self.get_val(use_mem);
-        let reg = self.reg.get_mut_a();
-        *reg = val.rotate_right(1);
-        self.reg.get_mut_p().c = val & 0x01 != 0x0;
-    }
-
-    fn load_byte_to_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
-        let val = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let reg = self.get_mut_reg(ind_reg);
-        *reg = val;
-    }
-
-    fn store_byte_from_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
+    fn data_bus_to_mem(&mut self, use_addr_bus: bool) {
         self.mem
-            .write_byte(self.get_addr(use_addr_bus), self.get_reg(ind_reg))
+            .write_byte(self.get_addr(use_addr_bus), *self.data_bus);
     }
 
-    fn add_byte_to_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
-        let val = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let reg = self.get_mut_reg(ind_reg);
-        let val = reg.wrapping_add(val);
+    fn transfer_reg(&mut self, from: &IndexedReg, to: &IndexedReg) {
+        let val = self.get_reg(from);
+        let reg = self.get_mut_reg(to);
         *reg = val;
+    }
+
+    fn shift_left_data_bus(&mut self) {
+        *self.alu = *self.data_bus << 1;
+        self.reg.get_mut_p().c = *self.data_bus & 0x80 != 0x0;
+    }
+
+    fn shift_left_reg(&mut self) {
+        let val = self.get_reg(&IndexedReg::A);
+        *self.get_mut_reg(&IndexedReg::A) = val << 1;
+        self.reg.get_mut_p().c = val & 0x80 != 0x0;
+    }
+
+    fn shift_right_data_bus(&mut self) {
+        *self.alu = *self.data_bus >> 1;
+        self.reg.get_mut_p().c = *self.data_bus & 0x01 != 0x0;
+    }
+
+    fn shift_right_reg(&mut self) {
+        let val = self.get_reg(&IndexedReg::A);
+        *self.get_mut_reg(&IndexedReg::A) = val >> 1;
+        self.reg.get_mut_p().c = val & 0x01 != 0x0;
+    }
+
+    fn rotate_left_data_bus(&mut self) {
+        *self.alu = self.data_bus.rotate_left(1);
+        self.reg.get_mut_p().c = *self.data_bus & 0x80 != 0x0;
+    }
+
+    fn rotate_left_reg(&mut self) {
+        let val = self.get_reg(&IndexedReg::A);
+        *self.get_mut_reg(&IndexedReg::A) = val.rotate_left(1);
+        self.reg.get_mut_p().c = val & 0x80 != 0x0;
+    }
+
+    fn rotate_right_data_bus(&mut self) {
+        *self.alu = self.data_bus.rotate_right(1);
+        self.reg.get_mut_p().c = *self.data_bus & 0x01 != 0x0;
+    }
+
+    fn rotate_right_reg(&mut self) {
+        let val = self.get_reg(&IndexedReg::A);
+        *self.get_mut_reg(&IndexedReg::A) = val.rotate_right(1);
+        self.reg.get_mut_p().c = val & 0x01 != 0x0;
+    }
+
+    fn add_to_reg(&mut self, ind_reg: &IndexedReg) {
+        let val = self.get_reg(ind_reg).wrapping_add(*self.data_bus);
+        *self.get_mut_reg(ind_reg) = val;
         self.reg.set_flags(val);
     }
 
-    fn sub_byte_from_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
-        let val = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let reg = self.get_mut_reg(ind_reg);
-        let val = reg.wrapping_sub(val);
-        *reg = val;
+    fn sub_from_reg(&mut self, ind_reg: &IndexedReg) {
+        let val = self.get_reg(ind_reg).wrapping_sub(*self.data_bus);
+        *self.get_mut_reg(ind_reg) = val;
         self.reg.set_flags(val);
     }
 
-    fn or_byte_with_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
-        let val = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let reg = self.get_mut_reg(ind_reg);
-        let val = *reg | val;
-        *reg = val;
+    fn or_with_reg(&mut self, ind_reg: &IndexedReg) {
+        let val = self.get_reg(ind_reg) | *self.data_bus;
+        *self.get_mut_reg(ind_reg) = val;
         self.reg.set_flags(val);
     }
 
-    fn and_byte_with_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
-        let val = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let reg = self.get_mut_reg(ind_reg);
-        let val = *reg & val;
-        *reg = val;
+    fn and_with_reg(&mut self, ind_reg: &IndexedReg) {
+        let val = self.get_reg(ind_reg) & *self.data_bus;
+        *self.get_mut_reg(ind_reg) = val;
         self.reg.set_flags(val);
     }
 
-    fn xor_byte_with_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
-        let val = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let reg = self.get_mut_reg(ind_reg);
-        let val = *reg ^ val;
-        *reg = val;
+    fn xor_with_reg(&mut self, ind_reg: &IndexedReg) {
+        let val = self.get_reg(ind_reg) ^ *self.data_bus;
+        *self.get_mut_reg(ind_reg) = val;
         self.reg.set_flags(val);
     }
 
-    fn cmp_byte_with_reg(&mut self, ind_reg: &IndexedReg, use_addr_bus: bool) {
+    fn compare_with_reg(&mut self, ind_reg: &IndexedReg) {
         let lhs = self.get_reg(ind_reg);
-        let rhs = self.mem.read_byte(self.get_addr(use_addr_bus));
+        let rhs = *self.data_bus;
         self.reg.get_mut_p().c = lhs >= rhs;
         self.reg.get_mut_p().z = lhs == rhs;
         self.reg.get_mut_p().n = lhs < rhs;
@@ -291,12 +318,6 @@ impl<'a> InstructionExecutor<'a> {
         *reg = reg.wrapping_sub(1);
     }
 
-    fn transfer_reg(&mut self, from: &IndexedReg, to: &IndexedReg) {
-        let val = self.get_reg(from);
-        let reg = self.get_mut_reg(to);
-        *reg = val;
-    }
-
     fn push(&mut self, val: Byte) {
         let addr = self.reg.get_s();
         self.mem.write_byte(u16::from_le_bytes([addr, SP]), val);
@@ -320,30 +341,6 @@ impl<'a> InstructionExecutor<'a> {
         *reg = val;
     }
 
-    fn get_mut_flag(&mut self, flag: &Flag) -> &mut bool {
-        match flag {
-            Flag::C => &mut self.reg.get_mut_p().c,
-            Flag::Z => &mut self.reg.get_mut_p().z,
-            Flag::I => &mut self.reg.get_mut_p().i,
-            Flag::D => &mut self.reg.get_mut_p().d,
-            Flag::B => &mut self.reg.get_mut_p().b,
-            Flag::V => &mut self.reg.get_mut_p().v,
-            Flag::N => &mut self.reg.get_mut_p().n,
-        }
-    }
-
-    fn get_flag(&mut self, flag: &Flag) -> &bool {
-        match flag {
-            Flag::C => &self.reg.get_mut_p().c,
-            Flag::Z => &self.reg.get_mut_p().z,
-            Flag::I => &self.reg.get_mut_p().i,
-            Flag::D => &self.reg.get_mut_p().d,
-            Flag::B => &self.reg.get_mut_p().b,
-            Flag::V => &self.reg.get_mut_p().v,
-            Flag::N => &self.reg.get_mut_p().n,
-        }
-    }
-
     fn set_flags(&mut self, flags: &Vec<Flag>) {
         for flag in flags {
             let flag = self.get_mut_flag(flag);
@@ -358,20 +355,19 @@ impl<'a> InstructionExecutor<'a> {
         }
     }
 
-    fn load_to_alu(&mut self, use_addr_bus: bool) {
-        *self.alu = self.mem.read_byte(self.get_addr(use_addr_bus));
-    }
-
-    fn store_alu(&mut self) {
-        self.mem.write_byte(*self.addr_bus, *self.alu);
+    fn data_bus_to_alu(&mut self) {
+        *self.alu = *self.data_bus;
+        self.inc_pc();
     }
 
     fn inc_alu(&mut self) {
-        *self.alu = self.alu.wrapping_add(1);
+        // TODO rename
+        *self.alu = self.data_bus.wrapping_add(1);
     }
 
     fn dec_alu(&mut self) {
-        *self.alu = self.alu.wrapping_sub(1);
+        // TODO rename
+        *self.alu = self.data_bus.wrapping_sub(1);
     }
 
     fn inc_pc(&mut self) {
@@ -418,7 +414,8 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn set_bit_test_flags(&mut self) {
-        let val = self.mem.read_byte(*self.addr_bus);
+        let val = *self.data_bus & self.get_reg(&IndexedReg::A);
+        self.reg.get_mut_p().z = val == 0;
         self.reg.get_mut_p().n = (val & 0x80) >> 7 == 1;
         self.reg.get_mut_p().v = (val & 0x40) >> 6 == 1;
     }

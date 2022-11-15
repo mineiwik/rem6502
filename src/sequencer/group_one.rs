@@ -61,33 +61,78 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
             sequence.push(LoadHigherAddr);
             sequence.push(AddToAddrBus(IndexedReg::Y));
         }
-        IM => sequence.push(Idle),
+        IM => {}
         _ => return None,
     }
 
     match (opcode, addr_mode) {
-        (LDA, IM) => sequence.push(LoadImmediate(IndexedReg::A)),
-        (LDA, _) => sequence.push(LoadFromAddr(IndexedReg::A)),
+        (LDA, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(DataBusToReg(IndexedReg::A));
+        }
+        (LDA, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(DataBusToReg(IndexedReg::A));
+        }
 
-        (STA, _) => sequence.push(StoreToAddr(IndexedReg::A)),
+        (STA, _) => {
+            sequence.push(RegToDataBus(IndexedReg::A));
+            sequence.push(DataBusToMem(true));
+        }
 
-        (ADC, IM) => sequence.push(AddImmediate(IndexedReg::A)),
-        (ADC, _) => sequence.push(AddFromAddr(IndexedReg::A)),
+        (ADC, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(AddToReg(IndexedReg::A));
+        }
+        (ADC, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(AddToReg(IndexedReg::A));
+        }
 
-        (SBC, IM) => sequence.push(SubImmediate(IndexedReg::A)),
-        (SBC, _) => sequence.push(SubFromAddr(IndexedReg::A)),
+        (SBC, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(SubFromReg(IndexedReg::A));
+        }
+        (SBC, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(SubFromReg(IndexedReg::A));
+        }
 
-        (ORA, IM) => sequence.push(ORImmediate(IndexedReg::A)),
-        (ORA, _) => sequence.push(ORFromAddr(IndexedReg::A)),
+        (ORA, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(ORWithReg(IndexedReg::A));
+        }
+        (ORA, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(ORWithReg(IndexedReg::A));
+        }
 
-        (AND, IM) => sequence.push(ANDImmediate(IndexedReg::A)),
-        (AND, _) => sequence.push(ANDFromAddr(IndexedReg::A)),
+        (AND, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(ANDWithReg(IndexedReg::A));
+        }
+        (AND, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(ANDWithReg(IndexedReg::A));
+        }
 
-        (EOR, IM) => sequence.push(XORImmediate(IndexedReg::A)),
-        (EOR, _) => sequence.push(XORFromAddr(IndexedReg::A)),
+        (EOR, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(XORWithReg(IndexedReg::A));
+        }
+        (EOR, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(XORWithReg(IndexedReg::A));
+        }
 
-        (CMP, IM) => sequence.push(CmpImmediate(IndexedReg::A)),
-        (CMP, _) => sequence.push(CmpFromAddr(IndexedReg::A)),
+        (CMP, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(CompareWithReg(IndexedReg::A));
+        }
+        (CMP, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(CompareWithReg(IndexedReg::A));
+        }
         _ => return None,
     }
 

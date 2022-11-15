@@ -1,8 +1,8 @@
 use crate::{
-    constants::{Byte, Word},
     instructions::Instructions::{self, *},
     memory::Memory,
     registers::Registers,
+    Byte, Word,
 };
 use std::vec;
 
@@ -25,8 +25,8 @@ pub fn get_seqeunce(instruction: u8, reg: &Registers, mem: &Memory) -> Option<Ve
     let mut sequence = vec![];
     let status = reg.get_p();
 
-    sequence.push(LoadToAlu(false));
-    sequence.push(IncPC);
+    sequence.push(MemToDataBus(false));
+    sequence.push(DataBusToAlu);
 
     let flag = match branch {
         NEGATIVE => status.n,
@@ -40,7 +40,7 @@ pub fn get_seqeunce(instruction: u8, reg: &Registers, mem: &Memory) -> Option<Ve
         return Some(sequence);
     }
     sequence.push(AddToPC);
-    if is_crossing_pb(reg.get_pc(), mem.read_byte(reg.get_pc())) {
+    if is_crossing_pb(reg.get_pc() + 0b1, mem.read_byte(reg.get_pc())) {
         sequence.push(Idle)
     }
 
@@ -48,5 +48,5 @@ pub fn get_seqeunce(instruction: u8, reg: &Registers, mem: &Memory) -> Option<Ve
 }
 
 fn is_crossing_pb(pc: Word, rel: Byte) -> bool {
-    pc.wrapping_add(rel as u16) >> 4 != pc >> 4
+    pc.wrapping_add(rel as u16) >> 8 != pc >> 8
 }

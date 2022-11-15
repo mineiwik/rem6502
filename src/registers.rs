@@ -1,4 +1,4 @@
-use crate::constants::{Byte, Word};
+use crate::{Byte, Word};
 
 #[derive(Default)]
 pub struct Status {

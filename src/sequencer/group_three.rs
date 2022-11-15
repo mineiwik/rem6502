@@ -40,20 +40,41 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
             sequence.push(LoadHigherAddr);
             sequence.push(AddToAddrBus(IndexedReg::X));
         }
-        IM => sequence.push(Idle),
+        IM => {}
         _ => return None,
     }
 
     match (opcode, addr_mode) {
-        (STY, _) => sequence.push(StoreToAddr(IndexedReg::Y)),
-        (LDY, IM) => sequence.push(LoadImmediate(IndexedReg::Y)),
-        (LDY, _) => sequence.push(LoadFromAddr(IndexedReg::Y)),
+        (STY, _) => {
+            sequence.push(RegToDataBus(IndexedReg::Y));
+            sequence.push(DataBusToMem(true));
+        }
+        (LDY, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(DataBusToReg(IndexedReg::Y));
+        }
+        (LDY, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(DataBusToReg(IndexedReg::Y));
+        }
 
-        (CPX, IM) => sequence.push(CmpImmediate(IndexedReg::X)),
-        (CPX, _) => sequence.push(CmpFromAddr(IndexedReg::X)),
+        (CPX, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(CompareWithReg(IndexedReg::X));
+        }
+        (CPX, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(CompareWithReg(IndexedReg::X));
+        }
 
-        (CPY, IM) => sequence.push(CmpImmediate(IndexedReg::Y)),
-        (CPY, _) => sequence.push(CmpFromAddr(IndexedReg::Y)),
+        (CPY, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(CompareWithReg(IndexedReg::Y));
+        }
+        (CPY, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(CompareWithReg(IndexedReg::Y));
+        }
 
         (JMP, A) => sequence.push(MoveAddrToPc),
 
@@ -64,7 +85,7 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         }
 
         (BIT, A) | (BIT, ZP) => {
-            sequence.push(ANDFromAddr(IndexedReg::A));
+            sequence.push(MemToDataBus(true));
             sequence.push(SetBitTestFlags);
         }
         _ => return None,

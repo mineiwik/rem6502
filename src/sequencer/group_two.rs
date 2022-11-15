@@ -50,32 +50,69 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
             }
             sequence.push(AddToAddrBus(reg));
         }
-        ACC | IM => sequence.push(Idle),
+        ACC => sequence.push(Idle),
+        IM => {}
         _ => return None,
     }
 
     match (opcode, addr_mode) {
         (DEC, ACC) | (STX, ACC) | (LDX, ACC) => return None,
-        (ASL, ACC) => sequence.push(ShiftLeftOneBit(false)),
-        (ASL, _) => sequence.push(ShiftLeftOneBit(true)),
-        (ROL, ACC) => sequence.push(RotateLeftOneBit(false)),
-        (ROL, _) => sequence.push(RotateLeftOneBit(true)),
-        (LSR, ACC) => sequence.push(ShiftRightOneBit(false)),
-        (LSR, _) => sequence.push(ShiftRightOneBit(true)),
-        (ROR, ACC) => sequence.push(RotateRightOneBit(false)),
-        (ROR, _) => sequence.push(RotateRightOneBit(true)),
-        (STX, _) => sequence.push(StoreToAddr(IndexedReg::X)),
-        (LDX, IM) => sequence.push(LoadImmediate(IndexedReg::X)),
-        (LDX, _) => sequence.push(LoadFromAddr(IndexedReg::X)),
+
+        (ASL, ACC) => sequence.push(ShiftLeftReg),
+        (ASL, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(ShiftLeftDataBus);
+            sequence.push(AluToDataBus);
+            sequence.push(DataBusToMem(true));
+        }
+
+        (ROL, ACC) => sequence.push(RotateLeftReg),
+        (ROL, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(RotateLeftDataBus);
+            sequence.push(AluToDataBus);
+            sequence.push(DataBusToMem(true));
+        }
+
+        (LSR, ACC) => sequence.push(ShiftRightReg),
+        (LSR, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(ShiftRightDataBus);
+            sequence.push(AluToDataBus);
+            sequence.push(DataBusToMem(true));
+        }
+
+        (ROR, ACC) => sequence.push(RotateRightReg),
+        (ROR, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(RotateRightDataBus);
+            sequence.push(AluToDataBus);
+            sequence.push(DataBusToMem(true));
+        }
+
+        (STX, _) => {
+            sequence.push(RegToDataBus(IndexedReg::X));
+            sequence.push(DataBusToMem(true));
+        }
+        (LDX, IM) => {
+            sequence.push(MemToDataBus(false));
+            sequence.push(DataBusToReg(IndexedReg::X));
+        }
+        (LDX, _) => {
+            sequence.push(MemToDataBus(true));
+            sequence.push(DataBusToReg(IndexedReg::X));
+        }
         (DEC, _) => {
-            sequence.push(LoadToAlu(true));
+            sequence.push(MemToDataBus(true));
             sequence.push(DecAlu);
-            sequence.push(StoreAlu);
+            sequence.push(AluToDataBus);
+            sequence.push(DataBusToMem(true));
         }
         (INC, _) => {
-            sequence.push(LoadToAlu(true));
+            sequence.push(MemToDataBus(true));
             sequence.push(IncAlu);
-            sequence.push(StoreAlu);
+            sequence.push(AluToDataBus);
+            sequence.push(DataBusToMem(true));
         }
         _ => return None,
     }
