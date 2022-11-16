@@ -1,5 +1,5 @@
 use crate::{
-    instructions::Instructions::{self, *},
+    instructions::{Instructions::{self, *}, AddrSource},
     memory::Memory,
     registers::Registers,
     Byte, Word,
@@ -25,8 +25,8 @@ pub fn get_seqeunce(instruction: u8, reg: &Registers, mem: &Memory) -> Option<Ve
     let mut sequence = vec![];
     let status = reg.get_p();
 
-    sequence.push(MemToDataBus(false));
-    sequence.push(DataBusToAlu);
+    sequence.push(MemToDataBus(AddrSource::PC));
+    sequence.push(Idle);
 
     let flag = match branch {
         NEGATIVE => status.n,
@@ -48,5 +48,9 @@ pub fn get_seqeunce(instruction: u8, reg: &Registers, mem: &Memory) -> Option<Ve
 }
 
 fn is_crossing_pb(pc: Word, rel: Byte) -> bool {
-    pc.wrapping_add(rel as u16) >> 8 != pc >> 8
+    let mut operand = rel as u16;
+    if rel >> 7 == 1 {
+        operand |= 0xFF00;
+    }
+    pc.wrapping_add(operand) >> 8 != pc >> 8
 }

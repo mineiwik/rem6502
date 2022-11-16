@@ -7,50 +7,56 @@ use crate::{
 #[derive(Debug)]
 pub enum Instructions {
     Idle,
-    MemToDataBus(bool),
+    MemToDataBus(AddrSource),
     RegToDataBus(IndexedReg),
     DataBusToReg(IndexedReg),
-    AluToDataBus,
-    DataBusToMem(bool),
+    DataBusToMem(AddrSource),
     CompareWithReg(IndexedReg),
-    LoadLowerAddr,
-    LoadHigherAddr,
+    LoadZPAddr,
+    LoadAddr(AddrSource),
     AddToAddrBus(IndexedReg),
     AddToReg(IndexedReg),
     SubFromReg(IndexedReg),
     ORWithReg(IndexedReg),
     ANDWithReg(IndexedReg),
     XORWithReg(IndexedReg),
-    LoadTempLowerAddr(bool),
-    LoadTempHigherAddr(bool),
-    ShiftLeftReg,
-    ShiftLeftDataBus,
-    ShiftRightReg,
-    ShiftRightDataBus,
-    RotateLeftReg,
-    RotateLeftDataBus,
-    RotateRightReg,
-    RotateRightDataBus,
     IncReg(IndexedReg),
     DecReg(IndexedReg),
     TransferReg(IndexedReg, IndexedReg),
     PullToReg(IndexedReg),
     PushFromReg(IndexedReg),
-    SetFlags(Vec<Flag>),
-    ClearFlags(Vec<Flag>),
-    DataBusToAlu,
-    IncAlu,
-    DecAlu,
+    SetFlags(Flag),
+    ClearFlags(Flag),
+    IncDataBus,
+    DecDataBus,
     IncPC,
     AddToPC,
     MoveAddrToPc,
     LoadStackPointer,
-    PushHigherPC,
-    PushLowerPC,
-    PullLowerPC,
-    PullHigherPC,
+    PushPC,
+    PullPC,
     PullToStatus,
     SetBitTestFlags,
+    Shift(Direction, DataSource),
+    Rotate(Direction, DataSource),
+}
+
+#[derive(Debug)]
+pub enum Direction {
+    Left,
+    Right
+}
+
+#[derive(Debug)]
+pub enum DataSource {
+    DataBus,
+    Reg
+}
+
+#[derive(Debug)]
+pub enum AddrSource {
+    AddrBus,
+    PC
 }
 
 pub struct InstructionExecutor<'a> {
@@ -58,7 +64,6 @@ pub struct InstructionExecutor<'a> {
     reg: &'a mut Registers,
     addr_bus: &'a mut Word,
     data_bus: &'a mut Byte,
-    alu: &'a mut Byte,
 }
 
 impl<'a> InstructionExecutor<'a> {
@@ -67,48 +72,31 @@ impl<'a> InstructionExecutor<'a> {
         reg: &'a mut Registers,
         addr_bus: &'a mut Word,
         data_bus: &'a mut Byte,
-        alu: &'a mut Byte,
     ) -> Self {
         Self {
             mem,
             reg,
             addr_bus,
             data_bus,
-            alu,
         }
     }
 
     pub fn execute_instruction(&mut self, instruction: &Instructions) {
         match instruction {
-            Instructions::MemToDataBus(use_addr_bus) => self.mem_to_data_bus(*use_addr_bus),
+            Instructions::Idle => {}
+            Instructions::MemToDataBus(source) => self.mem_to_data_bus(source),
             Instructions::RegToDataBus(ind_reg) => self.reg_to_data_bus(ind_reg),
             Instructions::DataBusToReg(ind_reg) => self.data_bus_to_reg(ind_reg),
-            Instructions::AluToDataBus => self.alu_to_data_bus(),
-            Instructions::DataBusToMem(use_addr_bus) => self.data_bus_to_mem(*use_addr_bus),
+            Instructions::DataBusToMem(source) => self.data_bus_to_mem(source),
             Instructions::CompareWithReg(ind_reg) => self.compare_with_reg(ind_reg),
-            Instructions::LoadLowerAddr => self.load_lower_byte_to_addr_bus(),
-            Instructions::LoadHigherAddr => self.load_higher_byte_to_addr_bus(false, false),
+            Instructions::LoadZPAddr => self.load_zp_addr(),
+            Instructions::LoadAddr(source) => self.load_addr(source),
             Instructions::AddToAddrBus(ind_reg) => self.add_to_addr_bus(ind_reg),
             Instructions::AddToReg(ind_reg) => self.add_to_reg(ind_reg),
             Instructions::SubFromReg(ind_reg) => self.sub_from_reg(ind_reg),
             Instructions::ORWithReg(ind_reg) => self.or_with_reg(ind_reg),
             Instructions::ANDWithReg(ind_reg) => self.and_with_reg(ind_reg),
             Instructions::XORWithReg(ind_reg) => self.xor_with_reg(ind_reg),
-            Instructions::LoadTempLowerAddr(use_addr_bus) => {
-                self.load_lower_byte_to_alu(*use_addr_bus)
-            }
-            Instructions::LoadTempHigherAddr(use_addr_bus) => {
-                self.load_higher_byte_to_addr_bus(true, *use_addr_bus)
-            }
-            Instructions::ShiftLeftReg => self.shift_left_reg(),
-            Instructions::ShiftLeftDataBus => self.shift_left_data_bus(),
-            Instructions::ShiftRightReg => self.shift_right_reg(),
-            Instructions::ShiftRightDataBus => self.shift_right_data_bus(),
-            Instructions::RotateLeftReg => self.rotate_left_reg(),
-            Instructions::RotateLeftDataBus => self.rotate_left_data_bus(),
-            Instructions::RotateRightReg => self.rotate_right_reg(),
-            Instructions::RotateRightDataBus => self.rotate_right_data_bus(),
-            Instructions::Idle => {}
             Instructions::IncReg(ind_reg) => self.inc_reg(ind_reg),
             Instructions::DecReg(ind_reg) => self.dec_reg(ind_reg),
             Instructions::TransferReg(from, to) => self.transfer_reg(from, to),
@@ -116,19 +104,18 @@ impl<'a> InstructionExecutor<'a> {
             Instructions::PushFromReg(ind_reg) => self.push_from_reg(ind_reg),
             Instructions::SetFlags(flags) => self.set_flags(flags),
             Instructions::ClearFlags(flags) => self.clear_flags(flags),
-            Instructions::DataBusToAlu => self.data_bus_to_alu(),
-            Instructions::IncAlu => self.inc_alu(),
-            Instructions::DecAlu => self.dec_alu(),
+            Instructions::IncDataBus => self.inc_data_bus(),
+            Instructions::DecDataBus => self.dec_data_bus(),
             Instructions::IncPC => self.inc_pc(),
             Instructions::AddToPC => self.add_to_pc(),
-            Instructions::MoveAddrToPc => self.load_addr_to_pc(),
+            Instructions::MoveAddrToPc => self.move_addr_to_pc(),
             Instructions::LoadStackPointer => self.load_stack_pointer(),
-            Instructions::PushHigherPC => self.push_higher_pc(),
-            Instructions::PushLowerPC => self.push_lower_pc(),
-            Instructions::PullHigherPC => self.pull_higher_pc(),
-            Instructions::PullLowerPC => self.pull_lower_pc(),
+            Instructions::PushPC => self.push_pc(),
+            Instructions::PullPC => self.pull_pc(),
             Instructions::PullToStatus => self.pull_to_status(),
             Instructions::SetBitTestFlags => self.set_bit_test_flags(),
+            Instructions::Shift(dir, source) => self.shift(dir, source),
+            Instructions::Rotate(dir, source) => self.rotate(dir, source),
         }
     }
 
@@ -162,16 +149,25 @@ impl<'a> InstructionExecutor<'a> {
         }
     }
 
-    fn get_addr(&self, use_addr_bus: bool) -> Word {
-        if use_addr_bus {
-            *self.addr_bus
-        } else {
-            self.reg.get_pc()
+    fn get_addr(&self, source: &AddrSource) -> Word {
+        match source {
+            AddrSource::AddrBus => *self.addr_bus,
+            AddrSource::PC => self.reg.get_pc()
         }
     }
 
-    fn mem_to_data_bus(&mut self, use_addr_bus: bool) {
-        *self.data_bus = self.mem.read_byte(self.get_addr(use_addr_bus));
+    fn get_mut_addr(&mut self, source: &AddrSource) -> &mut Word {
+        match source {
+            AddrSource::AddrBus => &mut self.addr_bus,
+            AddrSource::PC => self.reg.get_mut_pc()
+        }
+    }
+
+    fn mem_to_data_bus(&mut self, source: &AddrSource) {
+        *self.data_bus = self.mem.read_byte(self.get_addr(source));
+        if let AddrSource::PC  = source {
+            self.reg.inc_pc();
+        }
     }
 
     fn reg_to_data_bus(&mut self, ind_reg: &IndexedReg) {
@@ -182,13 +178,9 @@ impl<'a> InstructionExecutor<'a> {
         *self.get_mut_reg(ind_reg) = *self.data_bus;
     }
 
-    fn alu_to_data_bus(&mut self) {
-        *self.data_bus = *self.alu;
-    }
-
-    fn data_bus_to_mem(&mut self, use_addr_bus: bool) {
+    fn data_bus_to_mem(&mut self, source: &AddrSource) {
         self.mem
-            .write_byte(self.get_addr(use_addr_bus), *self.data_bus);
+            .write_byte(self.get_addr(source), *self.data_bus);
     }
 
     fn transfer_reg(&mut self, from: &IndexedReg, to: &IndexedReg) {
@@ -198,8 +190,26 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn shift_left_data_bus(&mut self) {
-        *self.alu = *self.data_bus << 1;
         self.reg.get_mut_p().c = *self.data_bus & 0x80 != 0x0;
+        *self.data_bus = *self.data_bus << 1;
+    }
+
+    fn shift(&mut self, dir: &Direction, source: &DataSource) {
+        match (dir, source) {
+            (Direction::Left, DataSource::Reg) => self.shift_left_reg(),
+            (Direction::Left, DataSource::DataBus) => self.shift_left_data_bus(),
+            (Direction::Right, DataSource::Reg) => self.shift_right_reg(),
+            (Direction::Right, DataSource::DataBus) => self.shift_right_data_bus(),
+        }
+    }
+
+    fn rotate(&mut self, dir: &Direction, source: &DataSource) {
+        match (dir, source) {
+            (Direction::Left, DataSource::Reg) => self.rotate_left_reg(),
+            (Direction::Left, DataSource::DataBus) => self.rotate_left_data_bus(),
+            (Direction::Right, DataSource::Reg) => self.rotate_right_reg(),
+            (Direction::Right, DataSource::DataBus) => self.rotate_right_data_bus(),
+        }
     }
 
     fn shift_left_reg(&mut self) {
@@ -209,8 +219,8 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn shift_right_data_bus(&mut self) {
-        *self.alu = *self.data_bus >> 1;
         self.reg.get_mut_p().c = *self.data_bus & 0x01 != 0x0;
+        *self.data_bus = *self.data_bus >> 1;
     }
 
     fn shift_right_reg(&mut self) {
@@ -220,8 +230,8 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn rotate_left_data_bus(&mut self) {
-        *self.alu = self.data_bus.rotate_left(1);
         self.reg.get_mut_p().c = *self.data_bus & 0x80 != 0x0;
+        *self.data_bus = self.data_bus.rotate_left(1);
     }
 
     fn rotate_left_reg(&mut self) {
@@ -231,8 +241,8 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn rotate_right_data_bus(&mut self) {
-        *self.alu = self.data_bus.rotate_right(1);
         self.reg.get_mut_p().c = *self.data_bus & 0x01 != 0x0;
+        *self.data_bus = self.data_bus.rotate_right(1);
     }
 
     fn rotate_right_reg(&mut self) {
@@ -279,29 +289,19 @@ impl<'a> InstructionExecutor<'a> {
         self.reg.get_mut_p().n = lhs < rhs;
     }
 
-    fn load_lower_byte_to_alu(&mut self, use_addr_bus: bool) {
-        let res = self.mem.read_byte(self.get_addr(use_addr_bus));
-        *self.addr_bus = self.addr_bus.wrapping_add(1);
-        *self.alu = res;
-        if !use_addr_bus {
-            self.reg.inc_pc();
-        }
+    fn load_zp_addr(&mut self) {
+        let l_byte = self.mem.read_byte(self.reg.get_pc());
+        *self.reg.get_mut_pc() = self.reg.get_pc().wrapping_add(1);
+        *self.addr_bus = u16::from_le_bytes([l_byte, 0]);
     }
 
-    fn load_lower_byte_to_addr_bus(&mut self) {
-        let res = self.mem.read_byte(self.reg.get_pc());
-        *self.addr_bus = u16::from_le_bytes([res, 0x0]);
-        self.reg.inc_pc();
-    }
-
-    fn load_higher_byte_to_addr_bus(&mut self, use_alu: bool, use_addr_bus: bool) {
-        let res = self.mem.read_byte(self.get_addr(use_addr_bus));
-        let addr_bytes = self.addr_bus.to_le_bytes();
-        let l_byte = if use_alu { *self.alu } else { addr_bytes[0] };
-        *self.addr_bus = u16::from_le_bytes([l_byte, res]);
-        if !use_addr_bus {
-            self.reg.inc_pc();
-        }
+    fn load_addr(&mut self, source: &AddrSource) {
+        let l_byte = self.mem.read_byte(self.get_addr(source));
+        *self.get_mut_addr(source) = self.get_addr(source).wrapping_add(1);
+        let h_byte = self.mem.read_byte(self.get_addr(source));
+        *self.get_mut_addr(source) = self.get_addr(source).wrapping_add(1);
+        *self.addr_bus = u16::from_le_bytes([l_byte, h_byte]);
+        println!("ADDR {}", *self.addr_bus);
     }
 
     fn add_to_addr_bus(&mut self, ind_reg: &IndexedReg) {
@@ -341,33 +341,22 @@ impl<'a> InstructionExecutor<'a> {
         *reg = val;
     }
 
-    fn set_flags(&mut self, flags: &Vec<Flag>) {
-        for flag in flags {
-            let flag = self.get_mut_flag(flag);
-            *flag = true;
-        }
+    fn set_flags(&mut self, flag: &Flag) {
+        let flag = self.get_mut_flag(flag);
+        *flag = true;
     }
 
-    fn clear_flags(&mut self, flags: &Vec<Flag>) {
-        for flag in flags {
-            let flag = self.get_mut_flag(flag);
-            *flag = false;
-        }
+    fn clear_flags(&mut self, flag: &Flag) {
+        let flag = self.get_mut_flag(flag);
+        *flag = false;
     }
 
-    fn data_bus_to_alu(&mut self) {
-        *self.alu = *self.data_bus;
-        self.inc_pc();
+    fn inc_data_bus(&mut self) {
+        *self.data_bus = self.data_bus.wrapping_add(1);
     }
 
-    fn inc_alu(&mut self) {
-        // TODO rename
-        *self.alu = self.data_bus.wrapping_add(1);
-    }
-
-    fn dec_alu(&mut self) {
-        // TODO rename
-        *self.alu = self.data_bus.wrapping_sub(1);
+    fn dec_data_bus(&mut self) {
+        *self.data_bus = self.data_bus.wrapping_sub(1);
     }
 
     fn inc_pc(&mut self) {
@@ -375,10 +364,14 @@ impl<'a> InstructionExecutor<'a> {
     }
 
     fn add_to_pc(&mut self) {
-        *self.reg.get_mut_pc() = self.reg.get_pc().wrapping_add(*self.alu as u16);
+        let mut operand: u16 = *self.data_bus as u16;
+        if *self.data_bus >> 7 == 1 {
+            operand |= 0xFF00;
+        }
+        *self.reg.get_mut_pc() = self.reg.get_pc().wrapping_add(operand);
     }
 
-    fn load_addr_to_pc(&mut self) {
+    fn move_addr_to_pc(&mut self) {
         *self.reg.get_mut_pc() = *self.addr_bus;
     }
 
@@ -386,26 +379,17 @@ impl<'a> InstructionExecutor<'a> {
         *self.addr_bus = u16::from_le_bytes([self.reg.get_s(), SP]);
     }
 
-    fn push_higher_pc(&mut self) {
-        let val = self.reg.get_pc().to_le_bytes()[1];
-        self.push(val);
+    fn push_pc(&mut self) {
+        let pc = self.reg.get_pc().wrapping_add(1);
+        let val = pc.to_le_bytes();
+        self.push(val[1]);
+        self.push(val[0]);
     }
 
-    fn push_lower_pc(&mut self) {
-        let val = self.reg.get_pc().to_le_bytes()[0];
-        self.push(val);
-    }
-
-    fn pull_higher_pc(&mut self) {
-        let pc = self.reg.get_pc().to_le_bytes();
-        let val = self.pull();
-        *self.reg.get_mut_pc() = u16::from_le_bytes([pc[0], val]);
-    }
-
-    fn pull_lower_pc(&mut self) {
-        let pc = self.reg.get_pc().to_le_bytes();
-        let val = self.pull();
-        *self.reg.get_mut_pc() = u16::from_le_bytes([val, pc[1]]);
+    fn pull_pc(&mut self) {
+        let l_byte = self.pull();
+        let h_byte = self.pull();
+        *self.reg.get_mut_pc() = u16::from_le_bytes([l_byte, h_byte]);
     }
 
     fn pull_to_status(&mut self) {

@@ -1,5 +1,5 @@
 use crate::{
-    instructions::Instructions::{self, *},
+    instructions::{Instructions::{self, *}, AddrSource},
     registers::IndexedReg,
 };
 use std::vec;
@@ -30,35 +30,35 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     let mut sequence = vec![];
 
     match addr_mode {
-        ZP => sequence.push(LoadLowerAddr),
+        ZP => sequence.push(LoadZPAddr),
         ZP_X => {
-            sequence.push(LoadLowerAddr);
+            sequence.push(LoadZPAddr);
             sequence.push(AddToAddrBus(IndexedReg::X));
         }
         ZP_X_IND => {
-            sequence.push(LoadLowerAddr);
+            sequence.push(LoadZPAddr);
             sequence.push(AddToAddrBus(IndexedReg::X));
-            sequence.push(LoadTempLowerAddr(true));
-            sequence.push(LoadTempHigherAddr(true));
+            sequence.push(LoadAddr(AddrSource::AddrBus));
+            sequence.push(Idle);
         }
         ZP_Y_IND => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadTempLowerAddr(true));
-            sequence.push(LoadTempHigherAddr(true));
+            sequence.push(LoadZPAddr);
+            sequence.push(LoadAddr(AddrSource::AddrBus));
+            sequence.push(Idle);
             sequence.push(AddToAddrBus(IndexedReg::Y));
         }
         A => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
         }
         A_X => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
             sequence.push(AddToAddrBus(IndexedReg::X));
         }
         A_Y => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
             sequence.push(AddToAddrBus(IndexedReg::Y));
         }
         IM => {}
@@ -67,70 +67,70 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
 
     match (opcode, addr_mode) {
         (LDA, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(DataBusToReg(IndexedReg::A));
         }
         (LDA, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(DataBusToReg(IndexedReg::A));
         }
 
         (STA, _) => {
             sequence.push(RegToDataBus(IndexedReg::A));
-            sequence.push(DataBusToMem(true));
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
 
         (ADC, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(AddToReg(IndexedReg::A));
         }
         (ADC, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(AddToReg(IndexedReg::A));
         }
 
         (SBC, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(SubFromReg(IndexedReg::A));
         }
         (SBC, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(SubFromReg(IndexedReg::A));
         }
 
         (ORA, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(ORWithReg(IndexedReg::A));
         }
         (ORA, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(ORWithReg(IndexedReg::A));
         }
 
         (AND, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(ANDWithReg(IndexedReg::A));
         }
         (AND, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(ANDWithReg(IndexedReg::A));
         }
 
         (EOR, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(XORWithReg(IndexedReg::A));
         }
         (EOR, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(XORWithReg(IndexedReg::A));
         }
 
         (CMP, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(CompareWithReg(IndexedReg::A));
         }
         (CMP, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(CompareWithReg(IndexedReg::A));
         }
         _ => return None,

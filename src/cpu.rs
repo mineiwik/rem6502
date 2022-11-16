@@ -10,7 +10,6 @@ pub struct CPU {
     registers: Registers,
     addr_bus: Word,
     data_bus: Byte,
-    alu: Byte,
     cycles: usize,
 }
 
@@ -21,7 +20,6 @@ impl CPU {
             registers: Registers::new(),
             addr_bus: 0x0,
             data_bus: 0x0,
-            alu: 0x0,
             cycles: 0x1,
         }
     }
@@ -44,7 +42,6 @@ impl CPU {
             &mut self.registers,
             &mut self.addr_bus,
             &mut self.data_bus,
-            &mut self.alu,
         );
         instruction_executor.execute_instruction(instruction);
     }
@@ -62,6 +59,15 @@ impl CPU {
             self.execute(&instruction);
         }
     }
+
+    pub fn run_loop(&mut self) {
+        loop {
+            if self.mem.read_byte(self.registers.get_pc()) == 0 {
+                break;
+            }
+            self.run();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -77,7 +83,7 @@ mod tests {
         cpu.run();
 
         assert_eq!(cpu.get_registers().get_a(), 0x34);
-        assert_eq!(cpu.get_registers().get_pc(), 0x1);
+        assert_eq!(cpu.get_registers().get_pc(), 0x2);
         assert_eq!(cpu.cycles, 3);
     }
 
@@ -813,7 +819,7 @@ mod tests {
         assert_eq!(cpu.get_registers().get_p().n, false);
         assert_eq!(cpu.get_registers().get_p().z, true);
         assert_eq!(cpu.get_registers().get_p().c, true);
-        assert_eq!(cpu.get_registers().get_pc(), 0x1);
+        assert_eq!(cpu.get_registers().get_pc(), 0x2);
         assert_eq!(cpu.cycles, 3);
     }
 
@@ -1390,12 +1396,12 @@ mod tests {
     fn bcc_do_branch_with_page_crossing() {
         let mut cpu = CPU::new();
         cpu.write_byte(0x0, 0x90);
-        cpu.write_byte(0x1, 0xFF);
+        cpu.write_byte(0x1, 0xFD);
         cpu.registers.p.c = false;
 
         cpu.run();
 
-        assert_eq!(cpu.get_registers().get_pc(), 0x101);
+        assert_eq!(cpu.get_registers().get_pc(), 0xFFFF);
         assert_eq!(cpu.cycles, 5);
     }
 

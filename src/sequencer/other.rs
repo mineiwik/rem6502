@@ -1,5 +1,5 @@
 use crate::{
-    instructions::Instructions::{self, *},
+    instructions::{Instructions::{self, *}, AddrSource},
     registers::{Flag, IndexedReg},
 };
 use std::vec;
@@ -34,36 +34,34 @@ const NOP: u8 = 0xEA;
 pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     let mut sequence = vec![];
 
+    sequence.push(Idle);
+
     match instruction {
         JSR_ABS => {
-            sequence.push(LoadTempLowerAddr(false));
             sequence.push(LoadStackPointer);
-            sequence.push(PushHigherPC);
-            sequence.push(PushLowerPC);
-            sequence.push(LoadTempHigherAddr(false));
+            sequence.push(PushPC);
+            sequence.push(Idle);
+            sequence.push(LoadAddr(AddrSource::PC));
             sequence.push(MoveAddrToPc);
         }
         RTS => {
             sequence.push(Idle);
+            sequence.push(PullPC);
             sequence.push(Idle);
-            sequence.push(PullLowerPC);
-            sequence.push(PullHigherPC);
             sequence.push(IncPC);
             sequence.push(Idle);
         }
         RTI => {
             sequence.push(Idle);
-            sequence.push(Idle);
             sequence.push(PullToStatus);
-            sequence.push(PullLowerPC);
-            sequence.push(PullHigherPC);
+            sequence.push(PullPC);
+            sequence.push(Idle);
         }
         BRK => {
             // TODO
-            sequence.push(IncPC);
-            sequence.push(PushHigherPC);
-            sequence.push(PushLowerPC);
-            sequence.push(SetFlags(vec![Flag::B]));
+            sequence.push(PushPC);
+            sequence.push(Idle);
+            sequence.push(SetFlags(Flag::B));
             sequence.push(Idle);
             sequence.push(Idle);
             sequence.push(Idle);
@@ -83,19 +81,15 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
         PHA => sequence.push(PushFromReg(IndexedReg::A)),
         PLP => sequence.push(PullToReg(IndexedReg::S)),
         PHP => sequence.push(PushFromReg(IndexedReg::S)),
-        CLC => sequence.push(ClearFlags(vec![Flag::C])),
-        CLD => sequence.push(ClearFlags(vec![Flag::D])),
-        CLI => sequence.push(ClearFlags(vec![Flag::I])),
-        CLV => sequence.push(ClearFlags(vec![Flag::V])),
-        SEC => sequence.push(SetFlags(vec![Flag::C])),
-        SED => sequence.push(SetFlags(vec![Flag::D])),
-        SEI => sequence.push(SetFlags(vec![Flag::I])),
+        CLC => sequence.push(ClearFlags(Flag::C)),
+        CLD => sequence.push(ClearFlags(Flag::D)),
+        CLI => sequence.push(ClearFlags(Flag::I)),
+        CLV => sequence.push(ClearFlags(Flag::V)),
+        SEC => sequence.push(SetFlags(Flag::C)),
+        SED => sequence.push(SetFlags(Flag::D)),
+        SEI => sequence.push(SetFlags(Flag::I)),
         _ => return None,
     };
-
-    if sequence.len() == 1 {
-        sequence.insert(0, Idle);
-    }
 
     Some(sequence)
 }

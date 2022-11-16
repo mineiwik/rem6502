@@ -1,5 +1,5 @@
 use crate::{
-    instructions::Instructions::{self, *},
+    instructions::{Instructions::{self, *}, AddrSource},
     registers::IndexedReg,
 };
 use std::vec;
@@ -26,18 +26,18 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     let mut sequence = vec![];
 
     match addr_mode {
-        ZP => sequence.push(LoadLowerAddr),
+        ZP => sequence.push(LoadZPAddr),
         ZP_X => {
-            sequence.push(LoadLowerAddr);
+            sequence.push(LoadZPAddr);
             sequence.push(AddToAddrBus(IndexedReg::X));
         }
         A => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
         }
         A_X => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
             sequence.push(AddToAddrBus(IndexedReg::X));
         }
         IM => {}
@@ -47,45 +47,45 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     match (opcode, addr_mode) {
         (STY, _) => {
             sequence.push(RegToDataBus(IndexedReg::Y));
-            sequence.push(DataBusToMem(true));
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
         (LDY, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(DataBusToReg(IndexedReg::Y));
         }
         (LDY, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(DataBusToReg(IndexedReg::Y));
         }
 
         (CPX, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(CompareWithReg(IndexedReg::X));
         }
         (CPX, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(CompareWithReg(IndexedReg::X));
         }
 
         (CPY, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(CompareWithReg(IndexedReg::Y));
         }
         (CPY, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(CompareWithReg(IndexedReg::Y));
         }
 
         (JMP, A) => sequence.push(MoveAddrToPc),
 
         (JMP_ABS, A) => {
-            sequence.push(LoadTempLowerAddr(true));
-            sequence.push(LoadTempHigherAddr(true));
+            sequence.push(LoadAddr(AddrSource::AddrBus));
+            sequence.push(Idle);
             sequence.push(MoveAddrToPc);
         }
 
         (BIT, A) | (BIT, ZP) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(SetBitTestFlags);
         }
         _ => return None,

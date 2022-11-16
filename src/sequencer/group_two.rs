@@ -1,5 +1,5 @@
 use crate::{
-    instructions::Instructions::{self, *},
+    instructions::{Instructions::{self, *}, Direction, DataSource, AddrSource},
     registers::IndexedReg,
 };
 use std::vec;
@@ -28,9 +28,9 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     let mut sequence = vec![];
 
     match addr_mode {
-        ZP => sequence.push(LoadLowerAddr),
+        ZP => sequence.push(LoadZPAddr),
         ZP_X => {
-            sequence.push(LoadLowerAddr);
+            sequence.push(LoadZPAddr);
             let mut reg = IndexedReg::X;
             if opcode == STX || opcode == LDX {
                 reg = IndexedReg::Y;
@@ -38,12 +38,12 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
             sequence.push(AddToAddrBus(reg));
         }
         A => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
         }
         A_X => {
-            sequence.push(LoadLowerAddr);
-            sequence.push(LoadHigherAddr);
+            sequence.push(LoadAddr(AddrSource::PC));
+            sequence.push(Idle);
             let mut reg = IndexedReg::X;
             if opcode == LDX {
                 reg = IndexedReg::Y;
@@ -58,62 +58,66 @@ pub fn get_seqeunce(instruction: u8) -> Option<Vec<Instructions>> {
     match (opcode, addr_mode) {
         (DEC, ACC) | (STX, ACC) | (LDX, ACC) => return None,
 
-        (ASL, ACC) => sequence.push(ShiftLeftReg),
+        (ASL, ACC) => sequence.push(Shift(Direction::Left, DataSource::Reg)),
         (ASL, _) => {
-            sequence.push(MemToDataBus(true));
-            sequence.push(ShiftLeftDataBus);
-            sequence.push(AluToDataBus);
-            sequence.push(DataBusToMem(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
+            sequence.push(Shift(Direction::Left, DataSource::DataBus));
+            sequence.push(Idle);
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
 
-        (ROL, ACC) => sequence.push(RotateLeftReg),
+        (ROL, ACC) => sequence.push(Rotate(Direction::Left, DataSource::Reg)),
         (ROL, _) => {
-            sequence.push(MemToDataBus(true));
-            sequence.push(RotateLeftDataBus);
-            sequence.push(AluToDataBus);
-            sequence.push(DataBusToMem(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
+            sequence.push(Rotate(Direction::Left, DataSource::DataBus));
+            sequence.push(Idle);
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
 
-        (LSR, ACC) => sequence.push(ShiftRightReg),
+        (LSR, ACC) => sequence.push(Shift(Direction::Right, DataSource::Reg)),
         (LSR, _) => {
-            sequence.push(MemToDataBus(true));
-            sequence.push(ShiftRightDataBus);
-            sequence.push(AluToDataBus);
-            sequence.push(DataBusToMem(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
+            sequence.push(Shift(Direction::Right, DataSource::DataBus));
+            sequence.push(Idle);
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
 
-        (ROR, ACC) => sequence.push(RotateRightReg),
+        (ROR, ACC) => sequence.push(Rotate(Direction::Right, DataSource::Reg)),
         (ROR, _) => {
-            sequence.push(MemToDataBus(true));
-            sequence.push(RotateRightDataBus);
-            sequence.push(AluToDataBus);
-            sequence.push(DataBusToMem(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
+            sequence.push(Rotate(Direction::Right, DataSource::DataBus));
+            sequence.push(Idle);
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
 
         (STX, _) => {
             sequence.push(RegToDataBus(IndexedReg::X));
-            sequence.push(DataBusToMem(true));
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
+
         (LDX, IM) => {
-            sequence.push(MemToDataBus(false));
+            sequence.push(MemToDataBus(AddrSource::PC));
             sequence.push(DataBusToReg(IndexedReg::X));
         }
         (LDX, _) => {
-            sequence.push(MemToDataBus(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
             sequence.push(DataBusToReg(IndexedReg::X));
         }
+
         (DEC, _) => {
-            sequence.push(MemToDataBus(true));
-            sequence.push(DecAlu);
-            sequence.push(AluToDataBus);
-            sequence.push(DataBusToMem(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
+            sequence.push(DecDataBus);
+            sequence.push(Idle);
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
+
         (INC, _) => {
-            sequence.push(MemToDataBus(true));
-            sequence.push(IncAlu);
-            sequence.push(AluToDataBus);
-            sequence.push(DataBusToMem(true));
+            sequence.push(MemToDataBus(AddrSource::AddrBus));
+            sequence.push(IncDataBus);
+            sequence.push(Idle);
+            sequence.push(DataBusToMem(AddrSource::AddrBus));
         }
+        
         _ => return None,
     }
 
